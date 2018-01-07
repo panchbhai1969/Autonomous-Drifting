@@ -41,13 +41,6 @@ def train(config, env):
         agent = DDQNAgent(sess, config)
         sess.run(tf.global_variables_initializer())
 
-        # Write summaries to tensorboard.
-        merged_summary = tf.summary.merge_all()
-        writer = tf.summary.FileWriter("./summary/1")
-        writer.add_graph(sess.graph)
-
-        writer.close()
-        return
         fig.show()
         fig.canvas.draw()
 
@@ -81,7 +74,6 @@ def train(config, env):
                     action = np.random.randint(0, config.a_size)
                 else:
                     action = agent.take_action(s)
-                    #print("Action: ", action)
 
                 next_state, reward, done, _ = env.step(action)
                 if config.verbose:

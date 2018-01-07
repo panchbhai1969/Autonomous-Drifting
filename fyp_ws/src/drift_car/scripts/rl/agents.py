@@ -32,6 +32,8 @@ class DDQNAgent():
         self.batch_size = config.batch_size
         self.gamma = config.gamma
         self.sess = sess
+        self.summary_writer = tf.summary.FileWriter('./summary/1', self.sess.graph)
+        self.merged_summary = tf.summary.merge_all()
 
     # Load saved model params.
     def load_agent_state(self, path):
@@ -53,7 +55,7 @@ class DDQNAgent():
 
     # Return action that maximizes rewards.
     def take_action(self, state):
-        return self.sess.run([self.primary_Q_network.printout, self.primary_Q_network.action_predicted], feed_dict={
+        return self.sess.run(self.primary_Q_network.action_predicted, feed_dict={
             self.primary_Q_network.state_input: [state]})[0]
 
     # Update network params. Returns losses.
@@ -73,14 +75,21 @@ class DDQNAgent():
             (self.gamma * Q_values_next_state * end_multiplier)
 
         # Update the primary network.
-        l, _ = self.sess.run([self.primary_Q_network.prediction_loss, self.primary_Q_network.update], feed_dict={
+        l, _, summ = self.sess.run([self.primary_Q_network.prediction_loss, self.primary_Q_network.update, self.merged_summary], feed_dict={
             self.primary_Q_network.state_input: np.vstack(train_batch[:, 0]),
             self.primary_Q_network.actions_taken: train_batch[:, 1],
-            self.primary_Q_network.target_Q: target_Q_values
+            self.primary_Q_network.target_Q: target_Q_values, 
+            self.target_Q_network.state_input: np.vstack(train_batch[:, 0])
         })
 
         # Update the target network.
         target_network_update_apply(
             self.sess, self.target_network_update_operations)
 
+        # Write summary
+        self.summary_writer.add_summary(summ)
         return l
+
+    def __del__(self):
+        if self.summary_writer:
+            self.summary_writer.close()

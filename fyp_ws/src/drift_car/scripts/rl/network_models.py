@@ -14,8 +14,9 @@ class DQNetwork():
 
         # Forward pass of the network.
         # output: batch_size x s_size
-        self.state_input = tf.placeholder(
-            shape=[None, s_size], dtype=tf.float32)
+        with tf.name_scope(name):
+            self.state_input = tf.placeholder(
+                shape=[None, s_size], dtype=tf.float32, name='state_input')
 
         #initializer = tf.truncated_normal_initializer(0, 0.02)
         # output: batch_size x h_size
