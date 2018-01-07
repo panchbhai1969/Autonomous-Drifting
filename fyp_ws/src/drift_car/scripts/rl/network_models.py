@@ -19,31 +19,25 @@ class DQNetwork():
 
         #initializer = tf.truncated_normal_initializer(0, 0.02)
         # output: batch_size x h_size
-        layer1 = self.relu_linear_layer(
-            self.state_input, h_size, name + "-layer1")
+        layer1 = self.linear(self.state_input, h_size, tf.nn.relu, name + "-layer1")
         # Layer 2.
-        layer2 = self.relu_linear_layer(layer1, h_size, name + "-layer2")
+        layer2 = self.linear(layer1, h_size, tf.nn.relu, name + "-layer2")
         # Layer 3
-        layer3 = self.relu_linear_layer(layer2, h_size, name + "-layer3")
+        layer3 = self.linear(layer2, h_size, tf.nn.relu, name + "-layer3")
 
         # Layer 4
-        layer4 = self.relu_linear_layer(layer3, h_size, name + "-layer4")
+        layer4 = self.linear(layer3, h_size, tf.nn.relu, name + "-layer4")
 
-        value = self.relu_linear_layer(layer4, o_size, name+'-value1')
-        value = slim.fully_connected(value, 1, 
-            biases_initializer=tf.constant_initializer(0.02),
-            weights_initializer=tf.truncated_normal_initializer(0, 0.02),
-            activation_fn=None,
-            scope=name+'-value2')
+        with tf.name_scope(name+"-value_stream"):
+            value = self.linear(layer4, o_size, tf.nn.relu, name+'-value1')
+            value = self.linear(value, 1, scope=name +'-value2')
 
-        advantage = self.relu_linear_layer(layer3, o_size, name+'-adv1')
-        advantage = slim.fully_connected(advantage, a_size,
-            biases_initializer=tf.constant_initializer(0.02),
-            weights_initializer=tf.truncated_normal_initializer(0, 0.02),
-            activation_fn=None,
-            scope=name+'-adv2')
+        with tf.name_scope(name+'-adv_stream'):
+            advantage = self.linear(layer4, o_size, tf.nn.relu, name+'-adv1')
+            advantage = self.linear(advantage, a_size, scope=name+'-adv2')
 
-        self.Qout = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keep_dims=True))
+        with tf.name_scope(name+"-Qout"):
+            self.Qout = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keep_dims=True))
         # Predict action that maximizes Q-value.
         self.action_predicted = tf.argmax(self.Qout, axis=1)
 
@@ -54,17 +48,24 @@ class DQNetwork():
             self.actions_taken, a_size, 1.0, 0.0, dtype=tf.float32, name='action_one_hot')
         self.predicted_Q = tf.reduce_sum(self.Qout * self.action_taken_one_hot, axis=1)
 
-        self.prediction_loss = tf.reduce_mean(
-            huber_loss(self.predicted_Q - self.target_Q))
+        with tf.name_scope(name+'-huber_loss'):
+            self.prediction_loss = tf.reduce_mean(
+                huber_loss(self.predicted_Q - self.target_Q))
 
         # Optimizer
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=lr)
+        with tf.name_scope(name+'-train'):
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=lr)
         self.update = self.optimizer.minimize(self.prediction_loss)
 
-    def relu_linear_layer(self, x, out_size, scope='relu_batch_norm'):
-        initializer = tf.truncated_normal_initializer()
-        return slim.fully_connected(x, out_size,
-                                    biases_initializer=tf.constant_initializer(0.02),
-                                    weights_initializer=initializer,
-                                    activation_fn=tf.nn.relu,
-                                    scope=scope)
+    def linear(self, x, out_size, activation_fn=None, scope='linear'):
+        shape = x.get_shape().as_list()
+        with tf.name_scope(scope):
+            W = tf.Variable(tf.truncated_normal([shape[1], out_size], mean=0, stddev=0.02), name="W")
+            b = tf.Variable(tf.constant(0.02, shape=[out_size]), name="b")
+            out = tf.nn.bias_add(tf.matmul(x, W), b)
+            if activation_fn != None:
+                out = activation_fn(out)
+            tf.summary.histogram("weights", W)
+            tf.summary.histogram("biases", b)
+            tf.summary.histogram("activations", out)
+            return out

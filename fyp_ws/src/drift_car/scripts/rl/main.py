@@ -2,7 +2,7 @@
 import argparse
 import os
 import gym
-import gym_drift_car
+#import gym_drift_car
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import style
@@ -37,10 +37,17 @@ def train(config, env):
 
     epsilon = 1.0
     tf.reset_default_graph()
-    annealing_rate = (epsilon - config.epsilon_min) / config.total_episodes
     with tf.Session() as sess:
         agent = DDQNAgent(sess, config)
         sess.run(tf.global_variables_initializer())
+
+        # Write summaries to tensorboard.
+        merged_summary = tf.summary.merge_all()
+        writer = tf.summary.FileWriter("./summary/1")
+        writer.add_graph(sess.graph)
+
+        writer.close()
+        return
         fig.show()
         fig.canvas.draw()
 
@@ -49,7 +56,7 @@ def train(config, env):
             os.makedirs(path)
 
         total_step_count = 0
-
+        annealing_rate = (epsilon - config.epsilon_min) / config.total_episodes
         if config.load_model:
             print('Loading latest saved model...')
             agent.load_agent_state()
@@ -74,6 +81,7 @@ def train(config, env):
                     action = np.random.randint(0, config.a_size)
                 else:
                     action = agent.take_action(s)
+                    #print("Action: ", action)
 
                 next_state, reward, done, _ = env.step(action)
                 if config.verbose:
@@ -150,15 +158,17 @@ if __name__ == '__main__':
         '--gamma',
         help='Discount factor',
         type=float,
-        default=0.9)
+        default=0.95)
     parser.add_argument(
         '-emi',
         '--epsilon_min',
         help='Minimum allowable value for epsilon',
         type=float,
-        default=0.01)
+        default=0.0)
     parser.add_argument('--tau', help='Controls update rate of target network',
-                        type=float, default=0.01)
+                        type=float, default=0.1)
+    # parser.add_argument('-e_decay', '--epsilon_decay', help="Rate of epsilon decay", 
+    #     type=float, default=0.98)
     parser.add_argument(
         '-lr',
         '--learning_rate',
@@ -170,9 +180,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '-uf',
         '--update_freq',
-        help='Determines how often(steps) target network updates toward primary network. (Default: 100 steps)',
+        help='Determines how often(steps) target network updates toward primary network. (Default: 50 steps)',
         type=int,
-        default=100)
+        default=50)
     parser.add_argument(
         '--save_model_interval',
         help='How often to save model. (Default: 5 ep)',
@@ -207,8 +217,8 @@ if __name__ == '__main__':
     
     config = parser.parse_args()
 
-    #env = gym.make('MountainCar-v0')
-    env = gym.make('DriftCarGazeboEnv-v0')
+    env = gym.make('CartPole-v0')
+    #env = gym.make('DriftCarGazeboEnv-v0')
     
     # Additional network params.
     vars(config)['a_size'] = env.action_space.n

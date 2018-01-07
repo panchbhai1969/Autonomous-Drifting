@@ -53,9 +53,8 @@ class DDQNAgent():
 
     # Return action that maximizes rewards.
     def take_action(self, state):
-        return self.sess.run(self.primary_Q_network.action_predicted, feed_dict={
+        return self.sess.run([self.primary_Q_network.printout, self.primary_Q_network.action_predicted], feed_dict={
             self.primary_Q_network.state_input: [state]})[0]
-
 
     # Update network params. Returns losses.
     def update_agent(self):
