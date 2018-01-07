@@ -2,6 +2,8 @@
 import random
 import numpy as np
 import tensorflow as tf
+import datetime
+
 from utilities import target_network_update_apply, target_network_update_ops, ExperienceReplayBuffer
 from network_models import DQNetwork
 
@@ -32,7 +34,7 @@ class DDQNAgent():
         self.batch_size = config.batch_size
         self.gamma = config.gamma
         self.sess = sess
-        self.summary_writer = tf.summary.FileWriter('./summary/1', self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter('./summary/'+str(datetime.datetime.now()), self.sess.graph)
         self.merged_summary = tf.summary.merge_all()
 
     # Load saved model params.

@@ -49,9 +49,11 @@ class DQNetwork():
             self.actions_taken, a_size, 1.0, 0.0, dtype=tf.float32, name='action_one_hot')
         self.predicted_Q = tf.reduce_sum(self.Qout * self.action_taken_one_hot, axis=1)
 
-        with tf.name_scope(name+'-huber_loss'):
+        with tf.name_scope(name):
             self.prediction_loss = tf.reduce_mean(
                 huber_loss(self.predicted_Q - self.target_Q))
+            if name == "primary":
+                tf.summary.scalar("huber-loss", self.prediction_loss)
 
         # Optimizer
         with tf.name_scope(name+'-train'):
@@ -61,9 +63,10 @@ class DQNetwork():
     def linear(self, x, out_size, activation_fn=None, scope='linear'):
         shape = x.get_shape().as_list()
         with tf.name_scope(scope):
-            W = tf.Variable(tf.truncated_normal([shape[1], out_size], mean=0, stddev=0.02), name="W")
+            W = tf.Variable(tf.truncated_normal([shape[1], out_size], mean=0), name="W")
             b = tf.Variable(tf.constant(0.02, shape=[out_size]), name="b")
-            out = tf.nn.bias_add(tf.matmul(x, W), b)
+            out = tf.contrib.layers.batch_norm(tf.nn.bias_add(tf.matmul(x, W), b), center=True, scale=True, is_training=True, scope=scope+"/batch_norm")
+            #out = tf.nn.bias_add(tf.matmul(x, W), b)
             if activation_fn != None:
                 out = activation_fn(out)
             tf.summary.histogram("weights", W)
