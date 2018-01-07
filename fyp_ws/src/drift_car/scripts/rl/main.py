@@ -215,7 +215,7 @@ if __name__ == '__main__':
     # Additional network params.
     vars(config)['a_size'] = env.action_space.n
     vars(config)['s_size'] = env.observation_space.shape[0]
-    vars(config)['h_size'] = 512
-    vars(config)['o_size'] = 512
+    vars(config)['h_size'] = 200
+    vars(config)['o_size'] = 200
     # Train the network.
     train(config, env)

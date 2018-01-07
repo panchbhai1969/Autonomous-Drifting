@@ -24,21 +24,21 @@ class DQNetwork():
         # Layer 2.
         layer2 = self.linear(layer1, h_size, tf.nn.relu, name + "-layer2")
         # Layer 3
-        layer3 = self.linear(layer2, h_size, tf.nn.relu, name + "-layer3")
+        self.Qout = self.linear(layer2, a_size, tf.nn.relu, name + "-layer3")
 
         # Layer 4
-        layer4 = self.linear(layer3, h_size, tf.nn.relu, name + "-layer4")
+        #layer4 = self.linear(layer3, h_size, tf.nn.relu, name + "-layer4")
 
-        with tf.name_scope(name+"-value_stream"):
-            value = self.linear(layer4, o_size, tf.nn.relu, name+'-value1')
-            value = self.linear(value, 1, scope=name +'-value2')
+        # with tf.name_scope(name+"-value_stream"):
+        #     value = self.linear(layer3, o_size, tf.nn.relu, name+'-value1')
+        #     value = self.linear(value, 1, scope=name +'-value2')
 
-        with tf.name_scope(name+'-adv_stream'):
-            advantage = self.linear(layer4, o_size, tf.nn.relu, name+'-adv1')
-            advantage = self.linear(advantage, a_size, scope=name+'-adv2')
+        # with tf.name_scope(name+'-adv_stream'):
+        #     advantage = self.linear(layer3, o_size, tf.nn.relu, name+'-adv1')
+        #     advantage = self.linear(advantage, a_size, scope=name+'-adv2')
 
-        with tf.name_scope(name+"-Qout"):
-            self.Qout = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keep_dims=True))
+        # with tf.name_scope(name+"-Qout"):
+            # self.Qout = value + tf.subtract(advantage, tf.reduce_mean(advantage, axis=1, keep_dims=True))
         # Predict action that maximizes Q-value.
         self.action_predicted = tf.argmax(self.Qout, axis=1)
 
@@ -65,8 +65,8 @@ class DQNetwork():
         with tf.name_scope(scope):
             W = tf.Variable(tf.truncated_normal([shape[1], out_size], mean=0), name="W")
             b = tf.Variable(tf.constant(0.02, shape=[out_size]), name="b")
-            out = tf.contrib.layers.batch_norm(tf.nn.bias_add(tf.matmul(x, W), b), center=True, scale=True, is_training=True, scope=scope+"/batch_norm")
-            #out = tf.nn.bias_add(tf.matmul(x, W), b)
+            #out = tf.contrib.layers.batch_norm(tf.nn.bias_add(tf.matmul(x, W), b), center=True, scale=True, is_training=True, scope=scope+"/batch_norm")
+            out = tf.nn.bias_add(tf.matmul(x, W), b)
             if activation_fn != None:
                 out = activation_fn(out)
             tf.summary.histogram("weights", W)
