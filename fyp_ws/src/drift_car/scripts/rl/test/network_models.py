@@ -15,9 +15,9 @@ class DQNetwork():
         hidden1 = slim.fully_connected(self.state_input, h_size, biases_initializer=None, activation_fn=tf.nn.relu)
         hidden2 = slim.fully_connected(hidden1, h_size, biases_initializer=None, activation_fn=tf.nn.relu)
         hidden3 = slim.fully_connected(hidden2, h_size, biases_initializer=None, activation_fn=tf.nn.relu)
-        hidden4 = slim.fully_connected(hidden3, h_size, biases_initializer=None, activation_fn=tf.nn.relu)
+        #hidden4 = slim.fully_connected(hidden3, h_size, biases_initializer=None, activation_fn=tf.nn.relu)
 
-        self.streamAC, self.streamVC = tf.split(hidden4, 2, 1)
+        self.streamAC, self.streamVC = tf.split(hidden3, 2, 1)
         self.streamA = slim.flatten(self.streamAC)
         self.streamV = slim.flatten(self.streamVC)
         xavier_init = tf.contrib.layers.xavier_initializer()
