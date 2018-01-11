@@ -20,9 +20,19 @@ from os import path
 class GazeboEnv(gym.Env):
         metadata = {'render.modes': ['human']}
         def __init__(self):
-                subprocess.Popen("roscore")
-                time.sleep(1)
-                print ("Roscore launched!")
+                # Learning Parameters
+                self.radius = 3
+                self.throttle = 400
+                self.degreeMappings = [65, 75, 85, 90, 95, 105, 115]
+                self.radianMappings = [-0.436, -0.261799, -0.0872665, 0, 0.0872665, 0.261799, 0.436]       
+                self.maxDeviationFromCenter = 6
+
+                #Configure continuous actions here
+                continous = True
+
+                if os.popen("ps -Af").read().count('roscore') == 0:
+                        subprocess.Popen("roscore")
+                        time.sleep(1)
                 
                 rospy.init_node('gym', anonymous=True)
                 
@@ -30,8 +40,6 @@ class GazeboEnv(gym.Env):
                 time.sleep(10)
                 self.controlProcess = subprocess.Popen(["roslaunch", "drift_car_gazebo_control", "drift_car_control.launch"])
                 time.sleep(5)
-                                
-                print ("Gazebo launched!")      
                 
                 self.gzclient_pid = 0
                 self.throtle1 = rospy.Publisher('/drift_car/joint1_position_controller/command', Float64, queue_size = 1)
@@ -43,25 +51,22 @@ class GazeboEnv(gym.Env):
                 self.pause = rospy.ServiceProxy('/gazebo/pause_physics', Empty)
                 self.reset_proxy = rospy.ServiceProxy('/gazebo/reset_simulation', Empty)
                 
-                self.reward_range = (-np.inf, np.inf)
-                self.action_space = spaces.Discrete(7)
+                high = np.array([0.436])
+                if continous:
+                        self.action_space = spaces.Box(-high, high)
+                else:
+                        self.action_space = spaces.Discrete(7)
                 
+                #TODO set proper values for state ranges here
                 high = np.array([np.finfo(np.float32).max, np.finfo(np.float32).max, np.finfo(np.float32).max, np.finfo(np.float32).max, np.finfo(np.float32).max, np.finfo(np.float32).max])
                 self.observation_space = spaces.Box(-high, high)   
-                
+                self.reward_range = (-np.inf, np.inf)
                 self._seed()
                 
                 self.previous_action = -1
                 self.previous_imu = {}
                 self.previous_pos = self.getPosData()
-                  
-                # Learning Parameters
-                self.radius = 3
-                self.throttle = 400
-                self.degreeMappings = [65, 75, 85, 90, 95, 105, 115]
-                self.radianMappings = [-0.436, -0.261799, -0.0872665, 0, 0.0872665, 0.261799, 0.436]       
-                self.maxDeviationFromCenter = 6
-                
+
         def _seed(self, seed=None):
                 self.np_random, seed = seeding.np_random(seed)
                 return [seed] 

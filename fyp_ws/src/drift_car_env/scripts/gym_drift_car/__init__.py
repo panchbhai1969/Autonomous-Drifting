@@ -4,7 +4,7 @@ from gym.envs.registration import register
 logger = logging.getLogger(__name__)
 
 register(
-    id='DriftCarGazeboEnv-v0',
+    id='DriftCarGazebo-v0',
     entry_point='gym_drift_car.envs:GazeboEnv',
 )
 #register(
