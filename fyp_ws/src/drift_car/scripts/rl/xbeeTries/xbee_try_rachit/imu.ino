@@ -187,7 +187,8 @@ float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
 float eInt[3] = {0.0f, 0.0f, 0.0f}; 
 float startTime;
 float endTime;
-float vx=0, vy=0, vz=0, ax_e=0, ay_e=0;
+float vX=0, vY=0, vz=0, ax_e=0, ay_e=0;
+int calibrationFlag=0;
 void imu(){
   
 	if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) {  // On interrupt, check if data ready interrupt
@@ -197,58 +198,29 @@ void imu(){
     ax = (float)accelCount[0]*aRes; // - accelBias[0];  // get actual g value, this depends on scale being set
     ay = (float)accelCount[1]*aRes; // - accelBias[1];   
     az = (float)accelCount[2]*aRes; // - accelBias[2];  
-
-    ax -= ax_e;
-    ay -= ay_e;
     readGyroData(gyroCount);  // Read the x/y/z adc values
     getGres();
     // Calculate the gyro value into actual degrees per second
     gz = (float)gyroCount[2]*gRes;   
-    readMagData(magCount);  // Read the x/y/z adc values
-    getMres();
-    magbias[0] = +470.;  // User environmental x-axis correction in milliGauss, should be automatically calculated
-    magbias[1] = +120.;  // User environmental x-axis correction in milliGauss
-    magbias[2] = +125.;  // User environmental x-axis correction in milliGauss
-    // Calculate the magnetometer values in milliGauss
-    // Include factory calibration per data sheet and user environmental corrections
-    mx = (float)magCount[0]*mRes*magCalibration[0] - magbias[0];  // get actual magnetometer value, this depends on scale being set
-    my = (float)magCount[1]*mRes*magCalibration[1] - magbias[1];  
-    mz = (float)magCount[2]*mRes*magCalibration[2] - magbias[2];   
   }
   
   Now = micros();
   deltat = ((Now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
   lastUpdate = Now;
-  MadgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, my, mx, mz);
+  //MadgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, my, mx, mz);
   //MahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, my, mx, mz);
-  startTime = micros();
-  integrateAcceleration(startTime-endTime);
-  endTime = startTime;
-              
-  yaw   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
-  pitch = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
-  roll  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
-  pitch *= 180.0f / PI;
-  yaw   *= 180.0f / PI; 
-  yaw   -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
-  roll  *= 180.0f / PI;
+  
+  if(calibrationFlag==1){
+    startTime = micros();
+    integrateAcceleration(startTime-endTime);  
+    endTime = startTime;
+  }  
 }
 void integrateAcceleration(float counter){
-  
-  vx = vx + ax*counter*0.000001;
-  vy = vy + ay*counter*0.000001;
-  vz = vz + az*counter*0.000001;
-}
-void getMres() {
-  switch (Mscale)
-  {
-    case MFS_14BITS:
-          mRes = 10.*4912./8190.; // Proper scale to return milliGauss
-          break;
-    case MFS_16BITS:
-          mRes = 10.*4912./32760.0; // Proper scale to return milliGauss
-          break;
-  }
+  delay(10);
+  vX = vX + getAx()*counter*0.000001;
+  vY = vY + getAy()*counter*0.000001;
+//  vz = vz + az*counter*0.000001;
 }
 
 void getGres() {
@@ -297,7 +269,6 @@ void readAccelData(int16_t * destination)
   destination[2] = ((int16_t)rawData[4] << 8) | rawData[5] ; 
 }
 
-
 void readGyroData(int16_t * destination)
 {
   uint8_t rawData[6];  // x/y/z gyro register data stored here
@@ -305,20 +276,6 @@ void readGyroData(int16_t * destination)
   destination[0] = ((int16_t)rawData[0] << 8) | rawData[1] ;  // Turn the MSB and LSB into a signed 16-bit value
   destination[1] = ((int16_t)rawData[2] << 8) | rawData[3] ;  
   destination[2] = ((int16_t)rawData[4] << 8) | rawData[5] ; 
-}
-
-void readMagData(int16_t * destination)
-{
-  uint8_t rawData[7];  // x/y/z gyro register data, ST2 register stored here, must read ST2 at end of data acquisition
-  if(readByte(AK8963_ADDRESS, AK8963_ST1) & 0x01) { // wait for magnetometer data ready bit to be set
-  readBytes(AK8963_ADDRESS, AK8963_XOUT_L, 7, &rawData[0]);  // Read the six raw data and ST2 registers sequentially into data array
-  uint8_t c = rawData[6]; // End data read by reading ST2 register
-    if(!(c & 0x08)) { // Check if magnetic sensor overflow set, if not then report data
-    destination[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;  // Turn the MSB and LSB into a signed 16-bit value
-    destination[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  // Data stored as little Endian
-    destination[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
-   }
-  }
 }
     
 void initAK8963(float * destination)
@@ -796,61 +753,31 @@ void MadgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, 
     q[3] = q4 * norm;
 
 }
-float getYaw(){
-  return yaw;
-}
 float getGz(){
   return gz;
 }
-float getRoll(){
-  return roll;
-}
-float getPitch(){
-  return pitch;
-}
 float getVx(){
-  return vx;
+  return vX;
 }
 float getVy(){
-  return vy;
-}
-float getVz(){
-  return vz;
-}
-float getAz(){
-  return az;
+  return vY;
 }
 float getAx(){
-  return ax;
+  return ax-ax_e;
 }
 float getAy(){
-  return ay;
+  return ay-ay_e;
 }
-void averageAccelerationX(){
+void averageAcceleration(){
   imu();
   ax_e=ax;
-  for(int i=1;i<100;i++){
-    imu();
-    ax_e = (ax_e*(i-1)+ax)/i;
-  } 
-}
-float averageAccelerationY(){
-  imu();
   ay_e=ay;
   for(int i=1;i<100;i++){
     imu();
+    ax_e = (ax_e*(i-1)+ax)/i;
     ay_e = (ay_e*(i-1)+ay)/i;
   } 
-}
-float averageAccelerationZ(){
-  float az_e;
-  imu();
-  az_e=az;
-  for(int i=1;i<100;i++){
-    imu();
-    az_e = (az_e*(i-1)+az)/i;
-  } 
-  return az_e;
+  calibrationFlag=1;
 }
 float getAx_e(){
   return ax_e;

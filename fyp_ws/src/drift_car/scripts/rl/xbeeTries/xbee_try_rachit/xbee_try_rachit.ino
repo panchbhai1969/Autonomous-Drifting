@@ -41,10 +41,7 @@ void setup() {
   initAK8963(magCalibration1);
  
   issueCommands(/*throttle=*/0, /*steeringAngle=*/90);
-  averageAccelerationX();
-  averageAccelerationY();
-  //z_error = averageAccelerationZ();
-  //calcNoise();
+  averageAcceleration();
 }
 
 int option = 0;
@@ -140,20 +137,18 @@ void communicateState() {
   // Read the IMU data.
   Wire.beginTransmission(104);
   imu();
-  yaw_1 = getYaw();
   gz_1 = getGz();
-  roll_1 = getRoll();
-  pitch_1 = getPitch();
-  xVelocityImu = getVx();
-  yVelocityImu = getVy();
-  zVelocityImu = getVz();
   float ax = getAx();
   float ay = getAy();
   Wire.endTransmission();
-
+  Serial.print(1000*getVx());Serial.print("\t");
+  Serial.print(1000*getVy());Serial.println();
+//  Serial.print(1000*getAx_e());Serial.print("\t");
+//  Serial.println(1000*getAy_e());
+ 
   // Create payload to send.
-  float toSend[] = {xVelocityImu, yVelocityImu, gz_1, gThrottle, gSteering};
-  uint8_t* payload = Utils::convert_to_bytes(toSend, 8);
+  float toSend[] = {ax, ay, 1000*getVx(), 1000*getVy(), gz_1};
+  uint8_t* payload = Utils::convert_to_bytes(toSend, numFloats);
   
   // Send TX packet and free space.
   Tx64Request tx = Tx64Request(addr64, payload, numFloats * 4);
